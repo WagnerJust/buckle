@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `README.md` with install, usage, and supported-target reference.
+- `README.md` is now bundled into release archives.
+
 ## [0.1.0] - 2026-05-04
 
 ### Added
