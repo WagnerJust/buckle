@@ -18,6 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Build metadata, populated via -ldflags "-X main.version=… -X main.commit=… -X main.date=…".
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 // Exit codes are part of the CLI contract.
 const (
 	exitCannotRun = 2
@@ -56,7 +63,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 	root.SetOut(stdout)
 	root.SetErr(stderr)
+	root.Version = fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
 	root.AddCommand(newInstallCmd(stdout, stderr))
+	root.AddCommand(newVersionCmd(stdout))
 	root.SetArgs(args)
 	return root.Execute()
 }
