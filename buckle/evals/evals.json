@@ -1,0 +1,21 @@
+{
+  "skill_name": "buckle",
+  "evals": [
+    {
+      "id": 1,
+      "name": "migrate-monolith-claudemd",
+      "prompt": "I'm starting to use Cursor too, not just Claude. I want my agent rules to work across both tools without duplicating everything. Restructure things appropriately.",
+      "expected_output": "Migration of the existing CLAUDE.md (which contains flat inline rules) to a hub-and-spoke layout: AGENTS.md becomes the hub, the rules move into a Spoke file, CLAUDE.md and .cursorrules are rewritten as one-line pointers to AGENTS.md.",
+      "files": ["CLAUDE.md"],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "fresh-project",
+      "prompt": "Set up agent rules for this project. We use TypeScript strict mode and never commit `.env*` files. The frontend in `frontend/` uses React 19 with Server Components by default; the backend in `backend/` uses Express + Drizzle.",
+      "expected_output": "Fresh hub-and-spoke layout: AGENTS.md as hub with routing rules pointing at folder-specific Spokes (one for frontend, one for backend, plus a global one for the project-wide TypeScript / .env rule). CLAUDE.md is a one-line pointer.",
+      "files": ["package.json", "src/index.ts", "README.md"],
+      "assertions": []
+    }
+  ]
+}

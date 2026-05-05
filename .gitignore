@@ -1,0 +1,5 @@
+/bin/
+/buckle-workspace/
+/.claude/
+*.out
+.DS_Store
