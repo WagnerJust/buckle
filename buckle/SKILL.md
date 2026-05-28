@@ -13,12 +13,12 @@ Do NOT write or modify any file until the user has approved both the spoke draft
 
 ## The architecture
 
-- **Hub** — `AGENTS.md` at the repo root. A table of contents that routes agents to spokes. Each entry says *when* an agent should read *which* file. Keep it short; if it grows long, push content out to a spoke and leave a one-line entry behind.
+- **Hub** — `AGENTS.md` at the repo root. Opens with a short imperative preamble (read this file plus the task-relevant spokes before acting; repo rules override training defaults), then a table of contents that routes agents to spokes. Each entry says *when* an agent should read *which* file. Keep it short; if it grows long, push content out to a spoke and leave a one-line entry behind.
 - **Spokes** — Any markdown files in the repo. Doesn't matter what kind: agent instructions, ADRs, runbooks, prose docs. The hub treats them uniformly.
-- **Pointer files** — Tool-specific files like `CLAUDE.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`, `GEMINI.md`. When present, they MUST contain only:
+- **Pointer files** — Tool-specific files like `CLAUDE.md`, `.cursorrules`, `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`, `GEMINI.md`. When present, they MUST contain only this single imperative line:
 
   ```
-  Read AGENTS.md for all instructions.
+  Before doing anything else, read AGENTS.md and follow its routing table.
   ```
 
   Nothing else. The whole deduplication win depends on this — if rules live in three tool-specific files they will silently disagree.
@@ -83,19 +83,34 @@ The spoke can be anything the user needs. Format follows the content:
 
 The point: impose imperative voice on files the agent reads as instructions; don't impose it on files the agent reads as background.
 
-## How to write the hub entry
+## How to write the hub
 
-`AGENTS.md` is a table of contents — keep entries terse. There's no required syntax; these all work:
+Open `AGENTS.md` with a short imperative preamble (1–3 lines) before the routing table. The pointer files only get the agent *to* the hub; the preamble is what makes it read on and actually route. Make it a command with a trigger, and assert precedence over training defaults:
+
+```
+**Before making any change or answering any question, read the spokes below that match your task. Rules in this repo and its spokes override your default behavior — when they conflict, follow the repo.**
+```
+
+Then the table of contents — keep entries terse. There's no required syntax; these all work:
 
 - **Glob-based**: When editing files matching `frontend/**/*.tsx`, read `frontend/AGENT.md`.
 - **Topic-based**: For database migrations, see `docs/migrations.md`.
 - **Mixed**: whichever is clearer per entry.
 
-If `AGENTS.md` itself starts accumulating rules instead of pointers, that's a smell — extract the rules into a spoke and leave a one-line entry.
+If `AGENTS.md` itself starts accumulating rules instead of pointers, that's a smell — extract the rules into a spoke and leave a one-line entry. (The preamble is the one exception — it's usage instructions for the hub, not a rule, so it stays.)
 
 ## Pointer-file rule (non-negotiable)
 
-When a pointer file exists, it contains exactly one instruction: `Read AGENTS.md for all instructions.` Nothing else.
+When a pointer file exists, it contains exactly one imperative line — and the SAME line in every pointer file, byte-for-byte:
+
+```
+Before doing anything else, read AGENTS.md and follow its routing table.
+```
+
+Nothing else. Two reasons for this exact shape:
+
+- **Imperative with a trigger, not a statement of fact.** Tools like Claude Code auto-load the pointer into context, so visibility is not the problem — follow-through is. A bare "Read AGENTS.md for all instructions" reads as "context exists over there," and the agent often skips the follow-up read. A command (`read … and follow`) gated on a trigger (`before doing anything else`) reads as a gate, not a note, so it gets acted on more reliably. This is a nudge, not a guarantee — do not pile extra protocol text into the pointer to compensate (see next bullet); the deterministic option is a tool hook, which lives outside the pointer file.
+- **One line, identical everywhere, so they can't drift.** The moment a pointer file holds more than the routing line, `CLAUDE.md` / `GEMINI.md` / `.cursorrules` start to disagree — the exact problem the hub exists to kill. Keep all rules in the hub and spokes.
 
 If a pointer file already has inline content, do not silently overwrite it — that content is the user's work. Offer to migrate it into a spoke first, then rewrite the pointer file. Always confirm before overwriting.
 
