@@ -21,6 +21,7 @@ func newInstallCmd(stdout, stderr io.Writer) *cobra.Command {
 		global bool
 		dir    string
 		path   string
+		force  bool
 	)
 
 	cmd := &cobra.Command{
@@ -42,7 +43,7 @@ Supported targets (--target):
 
 "Shared" targets write to a file the user might already be using for
 other purposes. The install refuses to overwrite, so an existing file
-yields a clear error.
+yields a clear error; pass --force to overwrite it anyway.
 
 Scope: project-local by default (the file lands in the current repo or
 the [path] argument). Pass --global to install at user scope under
@@ -67,6 +68,9 @@ Examples:
 
   # Write to a fully-specified path with Claude's body format.
   buckle install --target claude --path ~/Skills/buckle.md --apply
+
+  # Re-install over an existing file (e.g., after updating the skill).
+  buckle install --target claude --global --apply --force
 
 Exit codes:
   0  installed (or dry-run / --list completed)
@@ -98,17 +102,30 @@ Exit codes:
 					t.Name, destPath)
 			}
 
+			existed := fileExists(destPath)
+
 			if !apply {
 				fmt.Fprintf(stdout, "buckle install (dry-run)\n  target: %s (%s)\n  scope:  %s\n  path:   %s\n  bytes:  %d\n",
 					t.ID, t.Name, mode, destPath, len(t.Body()))
+				if existed {
+					if force {
+						fmt.Fprintln(stdout, "  exists: yes — will overwrite (--force)")
+					} else {
+						fmt.Fprintln(stdout, "  exists: yes — re-run with --force to overwrite")
+					}
+				}
 				fmt.Fprintln(stdout, "\nNothing was written. Re-run with --apply to commit.")
 				return nil
 			}
 
-			if err := writeNew(destPath, []byte(t.Body())); err != nil {
+			if err := writeSkill(destPath, []byte(t.Body()), force); err != nil {
 				return errCannotRun(err)
 			}
-			fmt.Fprintf(stdout, "Wrote %s (%d bytes).\n", destPath, len(t.Body()))
+			verb := "Wrote"
+			if existed {
+				verb = "Overwrote"
+			}
+			fmt.Fprintf(stdout, "%s %s (%d bytes).\n", verb, destPath, len(t.Body()))
 			return nil
 		},
 	}
@@ -120,6 +137,7 @@ Exit codes:
 	f.BoolVar(&global, "global", false, "Install at user scope (under $HOME) instead of the current repo.")
 	f.StringVar(&dir, "dir", "", "Override the base directory (replaces $HOME for --global, or the repo root for project scope).")
 	f.StringVar(&path, "path", "", "Fully-specified destination path. Target still controls the body format. Conflicts with --global, --dir, and the positional [path] argument.")
+	f.BoolVarP(&force, "force", "f", false, "Overwrite the destination if it already exists. Without this, install refuses to clobber an existing file.")
 	return cmd
 }
 
@@ -220,23 +238,37 @@ func expandHome(p string) string {
 	return filepath.Join(home, p[2:])
 }
 
-// writeNew writes data to path, creating any missing parent directories,
-// and refuses to overwrite an existing file. The O_EXCL flag is the
-// safety guarantee — buckle never silently clobbers a user's content.
-func writeNew(path string, data []byte) error {
+// writeSkill writes data to path, creating any missing parent directories.
+// By default it refuses to overwrite an existing file — the O_EXCL flag is
+// the safety guarantee, so buckle never silently clobbers a user's content.
+// With force, it truncates the destination instead, which is an explicit
+// opt-in to overwrite.
+func writeSkill(path string, data []byte, force bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if force {
+		flags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
+	f, err := os.OpenFile(path, flags, 0o644)
 	if err != nil {
 		if errors.Is(err, os.ErrExist) {
-			return fmt.Errorf("refusing to overwrite existing file: %s", path)
+			return fmt.Errorf("refusing to overwrite existing file: %s (use --force to overwrite)", path)
 		}
 		return err
 	}
 	defer f.Close()
 	_, err = f.Write(data)
 	return err
+}
+
+// fileExists reports whether path already names a file or directory. Used
+// only for messaging and dry-run hints; the real overwrite guard is the
+// O_EXCL open in writeSkill.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func printTargetList(w io.Writer) {

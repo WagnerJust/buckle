@@ -72,6 +72,33 @@ func TestInstallRefusesOverwrite(t *testing.T) {
 	}
 }
 
+func TestInstallForceOverwrites(t *testing.T) {
+	tmp := t.TempDir()
+	if _, _, err := runCLI("install", "--target", "claude", "--apply", tmp); err != nil {
+		t.Fatalf("first apply failed: %v", err)
+	}
+	// Without --force, a second apply still refuses, and the error points at --force.
+	_, _, err := runCLI("install", "--target", "claude", "--apply", tmp)
+	if err == nil {
+		t.Fatal("second apply without --force should still refuse")
+	}
+	if !strings.Contains(err.Error(), "--force") {
+		t.Errorf("refusal should mention --force for discoverability, got: %v", err)
+	}
+	// With --force, it overwrites and says so.
+	out, _, err := runCLI("install", "--target", "claude", "--apply", "--force", tmp)
+	if err != nil {
+		t.Fatalf("--force apply should overwrite, got: %v", err)
+	}
+	if !strings.Contains(out, "Overwrote") {
+		t.Errorf("expected overwrite confirmation in output, got:\n%s", out)
+	}
+	want := filepath.Join(tmp, ".claude/skills/buckle/SKILL.md")
+	if _, statErr := os.Stat(want); statErr != nil {
+		t.Fatalf("file should still exist after force overwrite: %v", statErr)
+	}
+}
+
 func TestInstallDirOverridesBaseDir(t *testing.T) {
 	tmp := t.TempDir()
 	_, _, err := runCLI("install", "--target", "claude", "--apply", "--dir", tmp)
