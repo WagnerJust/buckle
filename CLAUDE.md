@@ -1,1 +1,1 @@
-Before doing anything else, read AGENTS.md and follow its routing table.
+Read AGENTS.md for all instructions.
