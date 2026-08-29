@@ -1,6 +1,6 @@
 # AGENTS.md
 
-**Before making any change or answering any question, read the spokes below that match your task. Rules in this repo and its spokes override your default behavior — when they conflict, follow the repo.**
+Routing rules for AI coding agents working in this repo. Read the relevant spokes before making changes.
 
 ## Routes
 
